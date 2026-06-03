@@ -1,0 +1,5 @@
+# Normalize line endings to LF for text files (CI runs on Linux).
+* text=auto eol=lf
+
+# Treat icons as binary.
+*.png binary

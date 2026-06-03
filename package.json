@@ -1,0 +1,39 @@
+{
+  "name": "bgremove",
+  "version": "0.1.0",
+  "description": "PowerPoint add-in that removes image backgrounds using BiRefNet via a backend service.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "icons": "node scripts/generate-icons.mjs",
+    "dev-certs": "office-addin-dev-certs install",
+    "sideload": "office-addin-debugging start manifest.xml desktop --app powerpoint",
+    "stop": "office-addin-debugging stop manifest.xml",
+    "server": "node --env-file-if-exists=server/.env server/proxy.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/office-js": "^1.0.592",
+    "eslint": "^10.4.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
+    "office-addin-debugging": "^6.1.1",
+    "office-addin-dev-certs": "^2.0.9",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.60.1",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "@gradio/client": "^2.2.1"
+  }
+}

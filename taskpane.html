@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BGRemove</title>
+    <!-- Office JavaScript API (loaded from Microsoft's CDN, as required) -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <link rel="stylesheet" href="/src/taskpane/taskpane.css" />
+  </head>
+  <body>
+    <main id="app" class="app">
+      <header class="header">
+        <h1>Remove Background</h1>
+        <p class="subtitle">High-quality background removal powered by BiRefNet.</p>
+      </header>
+
+      <section id="status" class="status status--info" role="status">
+        Initializing…
+      </section>
+
+      <section class="controls">
+        <label id="dropzone" class="dropzone" for="file-input">
+          <input id="file-input" type="file" accept="image/*" hidden />
+          <span class="dropzone__text">Drop an image here or <u>browse</u></span>
+        </label>
+        <button id="use-selection" class="btn btn--ghost" type="button">
+          Use image selected on the slide
+        </button>
+      </section>
+
+      <section class="previews" hidden id="previews">
+        <figure class="preview">
+          <figcaption>Original</figcaption>
+          <div class="preview__frame">
+            <img id="preview-original" alt="Original image" />
+          </div>
+        </figure>
+        <figure class="preview">
+          <figcaption>Result</figcaption>
+          <div class="preview__frame preview__frame--checker">
+            <img id="preview-result" alt="Image with background removed" />
+          </div>
+        </figure>
+      </section>
+
+      <section class="actions">
+        <button id="remove-btn" class="btn btn--primary" type="button" disabled>
+          Remove background
+        </button>
+        <button id="insert-btn" class="btn btn--primary" type="button" disabled>
+          Insert onto slide
+        </button>
+      </section>
+    </main>
+
+    <script type="module" src="/src/taskpane/main.ts"></script>
+  </body>
+</html>

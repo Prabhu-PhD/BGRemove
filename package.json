@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "concurrently -n web,api -c blue,green \"npm run dev\" \"npm run server\"",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/office-js": "^1.0.592",
+    "concurrently": "^10.0.3",
     "eslint": "^10.4.1",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.6.0",

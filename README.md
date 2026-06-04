@@ -52,22 +52,28 @@ npm run dev-certs    # trust the localhost HTTPS cert
 
 ## Run
 
-Three things, in their own terminals:
+Start the frontend **and** backend together (keep this terminal open):
 
 ```powershell
-npm run dev        # 1. HTTPS frontend on https://localhost:3000
-npm run server     # 2. backend proxy on http://127.0.0.1:8787
-npm run sideload   # 3. registers the add-in and opens desktop PowerPoint
+npm run dev:all     # https://localhost:3000 (web) + http://127.0.0.1:8787 (api)
+```
+
+Then, in a second terminal, sideload into PowerPoint:
+
+```powershell
+npm run sideload    # registers the add-in and opens desktop PowerPoint
 ```
 
 Then **Home → Remove Background** opens the pane. For PowerPoint **on the web**,
-upload `manifest.xml` via Insert → Add-ins → Upload My Add-in (keep terminals 1 & 2
+upload `manifest.xml` via Insert → Add-ins → Upload My Add-in (keep `dev:all`
 running; hard-refresh with Ctrl+Shift+R to dodge caching). Stop sideloading with
 `npm run stop`.
 
-> The frontend (`npm run dev`) and backend (`npm run server`) must both be running
-> whenever you use the add-in. The first removal after the Space has been idle can
-> be slow (it wakes from sleep).
+> **The add-in only loads while `npm run dev:all` is running** — it's a local web app,
+> so closing that terminal (or restarting your PC) stops it, and the pane won't load
+> until you start it again. (`dev:all` just runs `npm run dev` + `npm run server`
+> together; you can still run them in separate terminals if you prefer.) The first
+> removal after the Space has been idle can be slow as it wakes from sleep.
 
 ## Roadmap / notes
 

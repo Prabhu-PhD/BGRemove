@@ -14,7 +14,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      # Use `npm install` (not `npm ci`): the lockfile is generated on Windows, where
+      # npm omits Linux-only optional deps (e.g. @emnapi/*, Rollup's native binary),
+      # so `npm ci`'s strict sync check fails on the Linux runner.
+      - run: npm install --no-audit --no-fund
       - run: npm run format:check
       - run: npm run lint
       - run: npm run build

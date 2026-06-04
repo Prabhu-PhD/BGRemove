@@ -21,37 +21,84 @@ async function imagePixelSize(blob: Blob): Promise<{ width: number; height: numb
   return size;
 }
 
-/**
- * Insert a PNG (given as a Blob) onto the current slide at the selection, sized
- * to its native dimensions (capped to fit a slide). Inserting at full size,
- * rather than PowerPoint's tiny default, prevents auto-compression from
- * discarding resolution — the usual cause of "inserted image looks low-res."
- */
-export async function insertImageOntoSlide(png: Blob): Promise<void> {
-  const base64 = await blobToBase64(png);
-
-  // px -> points (96dpi screen -> 72pt/inch), capped so the longer side fits a slide.
-  const MAX_SIDE_PT = 600; // ~8.3 inches
-  const options: Office.SetSelectedDataOptions = {
-    coercionType: Office.CoercionType.Image,
-  };
-  try {
-    const { width, height } = await imagePixelSize(png);
-    const ptW = width * 0.75;
-    const ptH = height * 0.75;
-    const scale = Math.min(1, MAX_SIDE_PT / Math.max(ptW, ptH));
-    options.imageWidth = Math.round(ptW * scale);
-    options.imageHeight = Math.round(ptH * scale);
-  } catch {
-    // Couldn't read dimensions — let PowerPoint choose the size.
+/** Re-encode the image with its longest side capped to `maxPx` (never upscales). */
+async function capLongestSide(blob: Blob, maxPx: number): Promise<Blob> {
+  const bitmap = await createImageBitmap(blob);
+  const longest = Math.max(bitmap.width, bitmap.height);
+  if (longest <= maxPx) {
+    bitmap.close();
+    return blob;
   }
+  const scale = maxPx / longest;
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return blob;
+  }
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Failed to encode image"))),
+      "image/png",
+    );
+  });
+}
 
+function setSelectedImage(
+  base64: string,
+  options: Office.SetSelectedDataOptions,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     Office.context.document.setSelectedDataAsync(base64, options, (res) => {
       if (res.status === Office.AsyncResultStatus.Succeeded) resolve();
       else reject(new Error(res.error?.message ?? "Could not insert the image."));
     });
   });
+}
+
+/**
+ * Insert a PNG (Blob) onto the current slide, sized to its native dimensions
+ * (capped to fit a slide). `setSelectedDataAsync` has a maximum data size —
+ * larger on desktop, stricter on the web — so if PowerPoint reports the data is
+ * too large, we progressively downscale and retry, inserting the highest-
+ * resolution version that fits.
+ */
+export async function insertImageOntoSlide(png: Blob): Promise<void> {
+  const MAX_SIDE_PT = 600; // ~8.3in display size
+  const FLOOR_PX = 700; // don't shrink the cutout below this
+  let blob = await capLongestSide(png, 2048);
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const { width, height } = await imagePixelSize(blob);
+    const ptW = width * 0.75; // px @96dpi -> points
+    const ptH = height * 0.75;
+    const scale = Math.min(1, MAX_SIDE_PT / Math.max(ptW, ptH));
+    const options: Office.SetSelectedDataOptions = {
+      coercionType: Office.CoercionType.Image,
+      imageWidth: Math.round(ptW * scale),
+      imageHeight: Math.round(ptH * scale),
+    };
+
+    const base64 = await blobToBase64(blob);
+    try {
+      await setSelectedImage(base64, options);
+      return;
+    } catch (err) {
+      const longest = Math.max(width, height);
+      const tooLarge = err instanceof Error && /too large/i.test(err.message);
+      if (tooLarge && longest > FLOOR_PX) {
+        blob = await capLongestSide(blob, Math.round(longest * 0.75));
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 /**

@@ -10,7 +10,7 @@
   <Version>0.1.0.0</Version>
   <ProviderName>BGRemove</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Cutout" />
+  <DisplayName DefaultValue="Cleancut" />
   <Description DefaultValue="Remove image backgrounds with the BiRefNet model and drop the cutout straight onto your slide." />
   <IconUrl DefaultValue="https://localhost:3000/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/icon-64.png" />
@@ -39,14 +39,14 @@
           <FunctionFile resid="Commands.Url" />
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
-              <Group id="Cutout.Group">
+              <Group id="Cleancut.Group">
                 <Label resid="Group.Label" />
                 <Icon>
                   <bt:Image size="16" resid="Icon.16" />
                   <bt:Image size="32" resid="Icon.32" />
                   <bt:Image size="80" resid="Icon.80" />
                 </Icon>
-                <Control xsi:type="Button" id="Cutout.OpenTaskpane">
+                <Control xsi:type="Button" id="Cleancut.OpenTaskpane">
                   <Label resid="Button.Label" />
                   <Supertip>
                     <Title resid="Button.Label" />
@@ -80,11 +80,11 @@
         <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="Group.Label" DefaultValue="Cutout" />
-        <bt:String id="Button.Label" DefaultValue="Cutout" />
+        <bt:String id="Group.Label" DefaultValue="Cleancut" />
+        <bt:String id="Button.Label" DefaultValue="Cleancut" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="Button.Tooltip" DefaultValue="Open Cutout to remove an image background and insert the result." />
+        <bt:String id="Button.Tooltip" DefaultValue="Open Cleancut to remove an image background and insert the result." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

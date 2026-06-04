@@ -5,8 +5,8 @@ A PowerPoint task-pane add-in that removes image backgrounds using
 cutout straight onto the slide.
 
 - **Add-in shell:** Office.js task pane (Windows, Mac, web).
-- **Inference:** **BiRefNet** on a free [Hugging Face Space](https://huggingface.co/spaces/not-lain/background-removal)
-  (Gradio API), called through a thin Node proxy. No API key, Python, or GPU needed.
+- **Inference:** **BiRefNet (Matting-HR)** on a free [Hugging Face Space](https://huggingface.co/spaces/ZhengPeng7/BiRefNet_demo)
+  (Gradio API, ZeroGPU), called through a thin Node proxy. No Python or GPU locally — just a free HF token.
 - **Output:** a transparent PNG inserted onto the slide.
 
 > Full architecture, end-to-end data flow, and cost breakdown:
@@ -27,7 +27,7 @@ a backend that runs it.
 Image (file / drop / selected shape)
    → POST /api/remove-bg            src/api/removeBackground.ts
        → Vite proxy (dev)  →  Node proxy (:8787)   server/proxy.mjs
-           → HF Space (BiRefNet, Gradio /png)  →  transparent PNG
+           → HF Space (BiRefNet Matting-HR, Gradio /image)  →  transparent PNG
    → insert onto slide              src/office/insertImage.ts
 ```
 
@@ -43,7 +43,7 @@ Image (file / drop / selected shape)
 
 - Node.js 18+ (tested on Node 24)
 - PowerPoint (desktop or web)
-- No API key needed — the default Space is called anonymously.
+- A **free Hugging Face token** (no card) — the model runs on HF's ZeroGPU. Get one at https://huggingface.co/settings/tokens
 
 ## Setup (one time)
 
@@ -51,6 +51,7 @@ Image (file / drop / selected shape)
 npm install
 npm run icons        # generate placeholder icons
 npm run dev-certs    # trust the localhost HTTPS cert
+Copy-Item server/.env.example server/.env   # then set HF_TOKEN=... (free HF token)
 ```
 
 ## Run

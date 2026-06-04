@@ -24,8 +24,9 @@ and returns a transparent PNG.
    `/api` → `http://127.0.0.1:8787`** (`vite.config.ts`). This avoids CORS and
    HTTPS mixed-content issues.
 6. **Inference** — `server/proxy.mjs` reads the body (25 MB cap) and, via
-   `@gradio/client`, calls the `not-lain/background-removal` Space's **`/png`**
-   endpoint. BiRefNet runs on the Space and returns a transparent-PNG file.
+   `@gradio/client`, calls the `ZhengPeng7/BiRefNet_demo` Space's **`/image`**
+   endpoint with the **Matting-HR** weights. BiRefNet runs on HF's ZeroGPU and
+   returns a before/after pair; the proxy keeps the transparent cutout.
 7. **Return** — `pickImageUrl()` (`server/lib.mjs`) extracts the output URL from the
    Gradio result; the proxy fetches it and streams the PNG back as `image/png`.
 8. **Preview + insert** — `main.ts` shows the cutout (checkerboard = transparency);
@@ -40,9 +41,9 @@ and returns a transparent PNG.
           |  POST /api/remove-bg  (raw bytes)              src/api/removeBackground.ts
           v
  Vite :3000 --proxy /api--> Node proxy :8787               vite.config.ts -> server/proxy.mjs
-                                  |  @gradio/client -> "/png"
+                                  |  @gradio/client -> "/image" (Matting-HR)
                                   v
-                         HF Space (BiRefNet) --> transparent PNG
+                    HF Space (BiRefNet Matting-HR) --> transparent cutout
           +-----------------------+  (proxy fetches result URL, returns image/png)
           v
  main.ts -> result preview --Insert--> setSelectedDataAsync --> slide   src/office/insertImage.ts
@@ -72,9 +73,9 @@ and returns a transparent PNG.
 | Tech | Used for |
 | --- | --- |
 | Node.js (`node:http`) | The proxy server (`:8787`), no web framework |
-| `@gradio/client` | Calls the HF Space's Gradio `/png` endpoint |
-| HF Space `not-lain/background-removal` | Runs **BiRefNet** — free, anonymous, no key |
-| `node --env-file-if-exists` | Optional `server/.env` (`HF_SPACE`, `HF_ENDPOINT`, `HF_TOKEN`, `PORT`) |
+| `@gradio/client` | Calls the HF Space's Gradio `/image` endpoint (Matting-HR) |
+| HF Space `ZhengPeng7/BiRefNet_demo` | Runs **BiRefNet Matting-HR** — free; needs a free HF token (ZeroGPU) |
+| `node --env-file-if-exists` | `server/.env`: `HF_TOKEN` (required), `HF_SPACE`, `HF_WEIGHTS`, `HF_RESOLUTION`, `PORT` |
 
 **Build & quality**
 
@@ -104,7 +105,7 @@ and returns a transparent PNG.
 
 ## Cost
 
-**Today: $0.** The HF Space is free/anonymous, GitHub + Actions are free at this
+**Today: $0.** The HF Space is free (your HF token), GitHub + Actions are free at this
 scale, BiRefNet is MIT-licensed, and everything runs locally.
 
 | Stage | Frontend | Proxy/backend | Inference | Monthly (approx.) |

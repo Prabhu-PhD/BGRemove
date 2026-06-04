@@ -6,9 +6,11 @@ import { Client } from "@gradio/client";
 import { pickImageUrl } from "./lib.mjs";
 
 const PORT = Number(process.env.PORT) || 8787;
-const SPACE = process.env.HF_SPACE || "not-lain/background-removal";
-const ENDPOINT = process.env.HF_ENDPOINT || "/png";
-const HF_TOKEN = process.env.HF_TOKEN; // optional — only for private/ZeroGPU spaces
+const SPACE = process.env.HF_SPACE || "ZhengPeng7/BiRefNet_demo";
+const ENDPOINT = process.env.HF_ENDPOINT || "/image";
+const WEIGHTS = process.env.HF_WEIGHTS ?? "Matting-HR"; // "" → single-image endpoints (e.g. /png)
+const RESOLUTION = process.env.HF_RESOLUTION ?? ""; // "" → model's native default (2048 for Matting-HR)
+const HF_TOKEN = process.env.HF_TOKEN; // required for ZeroGPU spaces (set in server/.env)
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB upload cap
 
 // Reuse one Space connection across requests; rebuild it if it goes bad.
@@ -40,7 +42,8 @@ async function runRemoval(blob, attempts = 3) {
   for (let i = 0; i < attempts; i++) {
     try {
       const client = await getClient();
-      return await client.predict(ENDPOINT, [blob]);
+      const inputs = WEIGHTS ? [blob, RESOLUTION, WEIGHTS] : [blob];
+      return await client.predict(ENDPOINT, inputs);
     } catch (err) {
       lastErr = err;
       clientPromise = null; // force a fresh connection on the next attempt
@@ -113,7 +116,7 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   console.log(
-    `BGRemove proxy → HF Space "${SPACE}" ${ENDPOINT}  on http://127.0.0.1:${PORT}`,
+    `Clean Cut proxy → ${SPACE} ${ENDPOINT}${WEIGHTS ? ` [${WEIGHTS}]` : ""}  on http://127.0.0.1:${PORT}`,
   );
   console.log(
     HF_TOKEN

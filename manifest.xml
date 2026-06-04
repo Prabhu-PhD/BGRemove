@@ -10,14 +10,13 @@
   <Version>0.1.0.0</Version>
   <ProviderName>BGRemove</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="BGRemove — Background Remover" />
-  <Description DefaultValue="Remove image backgrounds locally on your machine using the BiRefNet model, then drop the cutout straight onto your slide." />
+  <DisplayName DefaultValue="Cutout" />
+  <Description DefaultValue="Remove image backgrounds with the BiRefNet model and drop the cutout straight onto your slide." />
   <IconUrl DefaultValue="https://localhost:3000/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/icon-64.png" />
   <SupportUrl DefaultValue="https://localhost:3000/taskpane.html" />
 
-  <!-- Domains the add-in is allowed to navigate to. Model weights/runtime are
-       fetched (not navigated), but we list the CDNs here for clarity. -->
+  <!-- Domains the add-in is allowed to navigate to. -->
   <AppDomains>
     <AppDomain>https://huggingface.co</AppDomain>
     <AppDomain>https://cdn.jsdelivr.net</AppDomain>
@@ -40,14 +39,14 @@
           <FunctionFile resid="Commands.Url" />
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
-              <Group id="BGRemove.Group">
+              <Group id="Cutout.Group">
                 <Label resid="Group.Label" />
                 <Icon>
                   <bt:Image size="16" resid="Icon.16" />
                   <bt:Image size="32" resid="Icon.32" />
                   <bt:Image size="80" resid="Icon.80" />
                 </Icon>
-                <Control xsi:type="Button" id="BGRemove.OpenTaskpane">
+                <Control xsi:type="Button" id="Cutout.OpenTaskpane">
                   <Label resid="Button.Label" />
                   <Supertip>
                     <Title resid="Button.Label" />
@@ -81,11 +80,11 @@
         <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="Group.Label" DefaultValue="BGRemove" />
-        <bt:String id="Button.Label" DefaultValue="Remove Background" />
+        <bt:String id="Group.Label" DefaultValue="Cutout" />
+        <bt:String id="Button.Label" DefaultValue="Cutout" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="Button.Tooltip" DefaultValue="Open BGRemove to erase an image background locally and insert the cutout." />
+        <bt:String id="Button.Tooltip" DefaultValue="Open Cutout to remove an image background and insert the result." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

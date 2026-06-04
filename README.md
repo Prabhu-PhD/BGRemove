@@ -9,6 +9,9 @@ cutout straight onto the slide.
   (Gradio API), called through a thin Node proxy. No API key, Python, or GPU needed.
 - **Output:** a transparent PNG inserted onto the slide.
 
+> Full architecture, end-to-end data flow, and cost breakdown:
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
 ## Why a backend?
 
 We first tried running BiRefNet **in the browser** (Transformers.js + ONNX). A

@@ -15,7 +15,7 @@ const MAX_BYTES = 25 * 1024 * 1024; // 25 MB upload cap
 let clientPromise = null;
 function getClient() {
   if (!clientPromise) {
-    clientPromise = Client.connect(SPACE, HF_TOKEN ? { hf_token: HF_TOKEN } : {}).catch(
+    clientPromise = Client.connect(SPACE, HF_TOKEN ? { token: HF_TOKEN } : {}).catch(
       (err) => {
         clientPromise = null;
         throw err;

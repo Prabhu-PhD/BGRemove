@@ -10,7 +10,7 @@
   <Version>0.1.0.0</Version>
   <ProviderName>BGRemove</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Cleancut" />
+  <DisplayName DefaultValue="Clean Cut" />
   <Description DefaultValue="Remove image backgrounds with the BiRefNet model and drop the cutout straight onto your slide." />
   <IconUrl DefaultValue="https://localhost:3000/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/icon-64.png" />
@@ -80,11 +80,11 @@
         <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="Group.Label" DefaultValue="Cleancut" />
-        <bt:String id="Button.Label" DefaultValue="Cleancut" />
+        <bt:String id="Group.Label" DefaultValue="Clean Cut" />
+        <bt:String id="Button.Label" DefaultValue="Clean Cut" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="Button.Tooltip" DefaultValue="Open Cleancut to remove an image background and insert the result." />
+        <bt:String id="Button.Tooltip" DefaultValue="Open Clean Cut to remove an image background and insert the result." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>

@@ -8,7 +8,7 @@ import { pickImageUrl } from "./lib.mjs";
 const PORT = Number(process.env.PORT) || 8787;
 const SPACE = process.env.HF_SPACE || "not-lain/background-removal";
 const ENDPOINT = process.env.HF_ENDPOINT || "/png";
-const HF_TOKEN = process.env.HF_TOKEN; // optional — only needed for private/ZeroGPU spaces
+const HF_TOKEN = process.env.HF_TOKEN; // optional — only for private/ZeroGPU spaces
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB upload cap
 
 // Reuse one Space connection across requests; rebuild it if it goes bad.
@@ -17,12 +17,40 @@ function getClient() {
   if (!clientPromise) {
     clientPromise = Client.connect(SPACE, HF_TOKEN ? { hf_token: HF_TOKEN } : {}).catch(
       (err) => {
-        clientPromise = null; // allow a retry on the next request
+        clientPromise = null;
         throw err;
       },
     );
   }
   return clientPromise;
+}
+
+/** Best-effort readable message from whatever the Gradio client throws. */
+function errText(err) {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    return err.message || err.error || err.reason || JSON.stringify(err);
+  }
+  return String(err);
+}
+
+/** Run the prediction, reconnecting and retrying to ride out cold starts. */
+async function runRemoval(blob, attempts = 3) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const client = await getClient();
+      return await client.predict(ENDPOINT, [blob]);
+    } catch (err) {
+      lastErr = err;
+      clientPromise = null; // force a fresh connection on the next attempt
+      console.warn(
+        `[bgremove-proxy] attempt ${i + 1}/${attempts} failed: ${errText(err)}`,
+      );
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+  throw lastErr;
 }
 
 function send(res, status, body, headers = {}) {
@@ -58,15 +86,7 @@ const server = createServer(async (req, res) => {
     if (!input.length) return send(res, 400, "Empty request body.");
 
     const contentType = req.headers["content-type"] || "image/png";
-    const client = await getClient();
-
-    let result;
-    try {
-      result = await client.predict(ENDPOINT, [new Blob([input], { type: contentType })]);
-    } catch (err) {
-      clientPromise = null; // drop a possibly-stale connection
-      throw err;
-    }
+    const result = await runRemoval(new Blob([input], { type: contentType }));
 
     const outUrl = pickImageUrl(result?.data);
     if (!outUrl) return send(res, 502, "Space returned no image.");
@@ -81,12 +101,11 @@ const server = createServer(async (req, res) => {
     });
   } catch (err) {
     console.error("[bgremove-proxy]", err);
-    const msg = err instanceof Error ? err.message : String(err);
     if (!res.headersSent) {
       send(
         res,
         502,
-        `Background removal failed: ${msg}. The free Space may be asleep — try again in a moment.`,
+        `Background removal failed: ${errText(err)}. The free Space may be waking from sleep — try again in a moment.`,
       );
     }
   }

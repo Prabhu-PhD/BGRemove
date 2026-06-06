@@ -1,7 +1,12 @@
-// Thin proxy: receives raw image bytes from the add-in, runs them through a
-// hosted BiRefNet on a free Hugging Face Space (Gradio API), and returns the
-// transparent PNG. No API key required (anonymous), no Python or GPU locally.
+// Clean Cut backend. In production this single service does two jobs:
+//   1. serves the built task pane (dist/) as static files, and
+//   2. handles POST /api/remove-bg by running the image through a hosted
+//      BiRefNet (Hugging Face Space, Gradio API) and returning a transparent PNG.
+// In local dev, Vite serves the task pane and proxies /api here.
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { join, normalize, extname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Client } from "@gradio/client";
 import { pickImageUrl } from "./lib.mjs";
 
@@ -10,8 +15,25 @@ const SPACE = process.env.HF_SPACE || "ZhengPeng7/BiRefNet_demo";
 const ENDPOINT = process.env.HF_ENDPOINT || "/image";
 const WEIGHTS = process.env.HF_WEIGHTS ?? "Matting-HR"; // "" → single-image endpoints (e.g. /png)
 const RESOLUTION = process.env.HF_RESOLUTION ?? ""; // "" → model's native default (2048 for Matting-HR)
-const HF_TOKEN = process.env.HF_TOKEN; // required for ZeroGPU spaces (set in server/.env)
+const HF_TOKEN = process.env.HF_TOKEN; // required for ZeroGPU spaces
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB upload cap
+
+const STATIC_ROOT = fileURLToPath(new URL("../dist", import.meta.url));
+const CONTENT_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".webp": "image/webp",
+  ".woff2": "font/woff2",
+  ".map": "application/json",
+  ".txt": "text/plain; charset=utf-8",
+};
 
 // Reuse one Space connection across requests; rebuild it if it goes bad.
 let clientPromise = null;
@@ -47,9 +69,7 @@ async function runRemoval(blob, attempts = 3) {
     } catch (err) {
       lastErr = err;
       clientPromise = null; // force a fresh connection on the next attempt
-      console.warn(
-        `[bgremove-proxy] attempt ${i + 1}/${attempts} failed: ${errText(err)}`,
-      );
+      console.warn(`[clean-cut] attempt ${i + 1}/${attempts} failed: ${errText(err)}`);
       if (i < attempts - 1) await new Promise((r) => setTimeout(r, 3000));
     }
   }
@@ -77,10 +97,29 @@ async function readBody(req) {
   return Buffer.concat(chunks);
 }
 
+/** Serve a file from the built dist/ folder (the task pane). */
+async function serveStatic(req, res) {
+  let pathname = decodeURIComponent((req.url || "/").split("?")[0]);
+  if (pathname === "/") pathname = "/taskpane.html";
+  const filePath = join(STATIC_ROOT, normalize(pathname));
+  if (!filePath.startsWith(STATIC_ROOT)) return send(res, 403, "Forbidden");
+  try {
+    const data = await readFile(filePath);
+    res.writeHead(200, {
+      "Content-Type":
+        CONTENT_TYPES[extname(filePath).toLowerCase()] || "application/octet-stream",
+    });
+    res.end(data);
+  } catch {
+    send(res, 404, "Not found");
+  }
+}
+
 const server = createServer(async (req, res) => {
   try {
     if (req.method === "OPTIONS") return send(res, 204, "");
     if (req.method === "GET" && req.url === "/health") return send(res, 200, "ok");
+    if (req.method === "GET") return serveStatic(req, res);
     if (req.method !== "POST" || !req.url?.endsWith("/remove-bg")) {
       return send(res, 404, "Not found");
     }
@@ -103,7 +142,7 @@ const server = createServer(async (req, res) => {
       "Content-Length": String(outBuf.length),
     });
   } catch (err) {
-    console.error("[bgremove-proxy]", err);
+    console.error("[clean-cut]", err);
     if (!res.headersSent) {
       send(
         res,
@@ -114,13 +153,12 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "127.0.0.1", () => {
+// Bind all interfaces (0.0.0.0) so cloud hosts like Render can reach it.
+server.listen(PORT, () => {
   console.log(
-    `Clean Cut proxy → ${SPACE} ${ENDPOINT}${WEIGHTS ? ` [${WEIGHTS}]` : ""}  on http://127.0.0.1:${PORT}`,
+    `Clean Cut → ${SPACE} ${ENDPOINT}${WEIGHTS ? ` [${WEIGHTS}]` : ""}  on :${PORT}`,
   );
   console.log(
-    HF_TOKEN
-      ? "Using HF token."
-      : "Anonymous (no token). Set HF_TOKEN in server/.env if needed.",
+    HF_TOKEN ? "Using HF token." : "No HF_TOKEN set — ZeroGPU calls will fail.",
   );
 });

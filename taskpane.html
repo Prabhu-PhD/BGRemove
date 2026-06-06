@@ -4,54 +4,95 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clean Cut</title>
-    <!-- Office JavaScript API (loaded from Microsoft's CDN, as required) -->
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <link rel="stylesheet" href="/src/taskpane/taskpane.css" />
   </head>
   <body>
-    <main id="app" class="app">
+    <main class="app">
       <header class="header">
-        <h1>Remove Background</h1>
-        <p class="subtitle">High-quality background removal powered by BiRefNet.</p>
+        <span class="header__logo" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="6" cy="6" r="3" />
+            <circle cx="6" cy="18" r="3" />
+            <line x1="20" y1="4" x2="8.12" y2="15.88" />
+            <line x1="14.47" y1="14.48" x2="20" y2="20" />
+            <line x1="8.12" y1="8.12" x2="12" y2="12" />
+          </svg>
+        </span>
+        <div>
+          <h1 class="header__title">Clean Cut</h1>
+          <p class="header__tag">Remove image backgrounds in a click</p>
+        </div>
       </header>
 
-      <section id="status" class="status status--info" role="status">
-        Initializing…
-      </section>
-
-      <section class="controls">
-        <label id="dropzone" class="dropzone" for="file-input">
+      <!-- Stage 1: pick an image -->
+      <section class="stage" id="stage-pick">
+        <label class="dropzone" id="dropzone" for="file-input">
           <input id="file-input" type="file" accept="image/*" hidden />
-          <span class="dropzone__text">Drop an image here or <u>browse</u></span>
+          <span class="dropzone__icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2.5" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+          </span>
+          <span class="dropzone__title">Drop an image here</span>
+          <span class="dropzone__hint"
+            >or <span class="dropzone__link">browse files</span></span
+          >
         </label>
-        <button id="use-selection" class="btn btn--ghost" type="button">
-          Use image selected on the slide
+        <button class="btn btn--subtle" id="use-selection" type="button">
+          Use the image selected on the slide
         </button>
       </section>
 
-      <section class="previews" hidden id="previews">
-        <figure class="preview">
-          <figcaption>Original</figcaption>
-          <div class="preview__frame">
-            <img id="preview-original" alt="Original image" />
+      <!-- Stage 2: preview / result -->
+      <section class="stage" id="stage-image" hidden>
+        <div class="viewer" id="viewer">
+          <img class="viewer__img" id="preview" alt="Image preview" />
+          <div class="viewer__overlay" id="overlay" hidden>
+            <span class="spinner" aria-hidden="true"></span>
+            <p class="viewer__overlay-text" id="overlay-text">Removing background…</p>
+            <p class="viewer__overlay-sub">This can take a few seconds.</p>
           </div>
-        </figure>
-        <figure class="preview">
-          <figcaption>Result</figcaption>
-          <div class="preview__frame preview__frame--checker">
-            <img id="preview-result" alt="Image with background removed" />
-          </div>
-        </figure>
+        </div>
+        <div class="segmented" id="toggle" hidden role="group" aria-label="Compare">
+          <button type="button" data-view="original">Original</button>
+          <button type="button" data-view="result" class="is-active">Result</button>
+        </div>
       </section>
 
-      <section class="actions">
-        <button id="remove-btn" class="btn btn--primary" type="button" disabled>
+      <!-- Actions -->
+      <div class="actions">
+        <button class="btn btn--primary" id="remove-btn" type="button" hidden>
           Remove background
         </button>
-        <button id="insert-btn" class="btn btn--primary" type="button" disabled>
+        <button class="btn btn--primary" id="insert-btn" type="button" hidden>
           Insert onto slide
         </button>
-      </section>
+        <button class="btn btn--secondary" id="download-btn" type="button" hidden>
+          Download PNG
+        </button>
+        <button class="btn btn--ghost" id="reset-btn" type="button" hidden>
+          New image
+        </button>
+      </div>
+
+      <p class="status" id="status" role="status" hidden></p>
     </main>
 
     <script type="module" src="/src/taskpane/main.ts"></script>

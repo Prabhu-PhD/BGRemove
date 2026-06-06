@@ -1,72 +1,90 @@
 import { removeBackgroundViaApi } from "../api/removeBackground";
 import { insertImageOntoSlide, getSelectedImageBase64 } from "../office/insertImage";
 
-// --- DOM ------------------------------------------------------------------
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const statusEl = $("status");
+const stagePick = $("stage-pick");
+const stageImage = $("stage-image");
 const dropzone = $("dropzone");
 const fileInput = $<HTMLInputElement>("file-input");
 const useSelectionBtn = $<HTMLButtonElement>("use-selection");
-const previews = $("previews");
-const originalImg = $<HTMLImageElement>("preview-original");
-const resultImg = $<HTMLImageElement>("preview-result");
+const viewer = $("viewer");
+const preview = $<HTMLImageElement>("preview");
+const overlay = $("overlay");
+const overlayText = $("overlay-text");
+const toggle = $("toggle");
 const removeBtn = $<HTMLButtonElement>("remove-btn");
 const insertBtn = $<HTMLButtonElement>("insert-btn");
+const downloadBtn = $<HTMLButtonElement>("download-btn");
+const resetBtn = $<HTMLButtonElement>("reset-btn");
+const statusEl = $("status");
 
-// --- State ----------------------------------------------------------------
+type View = "original" | "result";
+type Stage = "pick" | "picked" | "processing" | "result" | "error";
+
+let inPowerPoint = false;
 let sourceBlob: Blob | null = null;
 let resultBlob: Blob | null = null;
-let inPowerPoint = false;
+let sourceUrl: string | null = null;
+let resultUrl: string | null = null;
 let inFlight: AbortController | null = null;
-const objectUrls: string[] = [];
 
-// --- Status helpers -------------------------------------------------------
-type StatusKind = "info" | "ok" | "warn" | "err";
-function setStatus(message: string, kind: StatusKind = "info", busy = false) {
-  statusEl.textContent = message;
-  statusEl.className = `status status--${kind}${busy ? " status--busy" : ""}`;
+// --- Helpers --------------------------------------------------------------
+const show = (el: HTMLElement, on: boolean) => (el.hidden = !on);
+const asMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+function setStatus(msg = "", kind: "info" | "ok" | "warn" | "err" = "info") {
+  statusEl.hidden = !msg;
+  statusEl.textContent = msg;
+  statusEl.className = `status status--${kind}`;
 }
 
-function showImage(el: HTMLImageElement, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  objectUrls.push(url);
-  el.src = url;
-  previews.hidden = false;
+function revokeUrls() {
+  if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+  if (resultUrl) URL.revokeObjectURL(resultUrl);
+  sourceUrl = resultUrl = null;
 }
 
+function setView(view: View) {
+  const url = view === "result" ? resultUrl : sourceUrl;
+  if (url) preview.src = url;
+  viewer.classList.toggle("viewer--checker", view === "result");
+  toggle
+    .querySelectorAll("button")
+    .forEach((b) => b.classList.toggle("is-active", b.dataset.view === view));
+}
+
+function render(stage: Stage) {
+  show(stagePick, stage === "pick");
+  show(stageImage, stage !== "pick");
+  show(overlay, stage === "processing");
+  show(toggle, stage === "result");
+  show(removeBtn, stage === "picked" || stage === "error");
+  show(insertBtn, stage === "result" && inPowerPoint);
+  show(downloadBtn, stage === "result");
+  show(resetBtn, stage === "picked" || stage === "result" || stage === "error");
+  removeBtn.textContent = stage === "error" ? "Try again" : "Remove background";
+  // Outside PowerPoint, Download becomes the primary action.
+  downloadBtn.className = `btn ${inPowerPoint ? "btn--secondary" : "btn--primary"}`;
+}
+
+// --- Input ----------------------------------------------------------------
 function setSource(blob: Blob) {
+  revokeUrls();
   sourceBlob = blob;
   resultBlob = null;
-  showImage(originalImg, blob);
-  resultImg.removeAttribute("src");
-  removeBtn.disabled = false;
-  insertBtn.disabled = true;
+  sourceUrl = URL.createObjectURL(blob);
+  preview.src = sourceUrl;
+  viewer.classList.remove("viewer--checker");
+  preview.alt = "Original image";
+  setStatus("");
+  render("picked");
 }
 
-function asMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-// --- Office bootstrap -----------------------------------------------------
-Office.onReady(({ host }) => {
-  inPowerPoint = host === Office.HostType.PowerPoint;
-  if (inPowerPoint) {
-    setStatus("Ready. Choose an image to begin.", "info");
-  } else {
-    useSelectionBtn.disabled = true;
-    insertBtn.title = "Open this add-in inside PowerPoint to insert images.";
-    setStatus(
-      "Running outside PowerPoint — removal works, but inserting is disabled.",
-      "warn",
-    );
-  }
-});
-
-// --- Input: file picker + drag & drop -------------------------------------
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
   if (file) setSource(file);
+  fileInput.value = ""; // allow re-picking the same file
 });
 
 ["dragenter", "dragover"].forEach((evt) =>
@@ -86,54 +104,57 @@ dropzone.addEventListener("drop", (e) => {
   if (file && file.type.startsWith("image/")) setSource(file);
 });
 
-// --- Input: image already on the slide ------------------------------------
 useSelectionBtn.addEventListener("click", async () => {
   try {
-    setStatus("Reading the selected shape…", "info", true);
+    useSelectionBtn.disabled = true;
+    setStatus("Reading the selected image…", "info");
     const base64 = await getSelectedImageBase64();
     if (!base64) {
-      setStatus("Select an image on the slide first, then try again.", "warn");
+      setStatus("Select a picture on the slide first, then try again.", "warn");
       return;
     }
     const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
     setSource(blob);
-    setStatus("Got it. Now click “Remove background”.", "ok");
   } catch (err) {
     setStatus(`Couldn't read the selection: ${asMessage(err)}`, "err");
+  } finally {
+    useSelectionBtn.disabled = false;
   }
 });
 
-// --- Action: remove background (server-side) ------------------------------
-removeBtn.addEventListener("click", async () => {
+// --- Actions --------------------------------------------------------------
+async function runRemove() {
   if (!sourceBlob) return;
-  removeBtn.disabled = true;
-  insertBtn.disabled = true;
-
   inFlight?.abort();
   inFlight = new AbortController();
-
+  setStatus("");
+  setView("original");
+  render("processing");
+  overlayText.textContent = "Removing background…";
   try {
-    setStatus("Removing background on the server…", "info", true);
     resultBlob = await removeBackgroundViaApi(sourceBlob, inFlight.signal);
-    showImage(resultImg, resultBlob);
-    setStatus("Done. Insert it onto your slide.", "ok");
-    insertBtn.disabled = !inPowerPoint;
+    if (resultUrl) URL.revokeObjectURL(resultUrl);
+    resultUrl = URL.createObjectURL(resultBlob);
+    preview.alt = "Image with the background removed";
+    setView("result");
+    render("result");
+    setStatus(inPowerPoint ? "Done! Insert it onto your slide." : "Done!", "ok");
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") return;
-    setStatus(`Background removal failed: ${asMessage(err)}`, "err");
-  } finally {
-    removeBtn.disabled = false;
+    render("error");
+    setStatus(`Couldn't remove the background. ${asMessage(err)}`, "err");
   }
-});
+}
 
-// --- Action: insert onto slide --------------------------------------------
+removeBtn.addEventListener("click", runRemove);
+
 insertBtn.addEventListener("click", async () => {
   if (!resultBlob) return;
   insertBtn.disabled = true;
   try {
-    setStatus("Inserting onto slide…", "info", true);
+    setStatus("Inserting onto your slide…", "info");
     await insertImageOntoSlide(resultBlob);
-    setStatus("Inserted. ✨", "ok");
+    setStatus("Inserted onto your slide. ✨", "ok");
   } catch (err) {
     setStatus(`Insert failed: ${asMessage(err)}`, "err");
   } finally {
@@ -141,8 +162,33 @@ insertBtn.addEventListener("click", async () => {
   }
 });
 
-// --- Cleanup --------------------------------------------------------------
+downloadBtn.addEventListener("click", () => {
+  if (!resultUrl) return;
+  const a = document.createElement("a");
+  a.href = resultUrl;
+  a.download = "clean-cut.png";
+  a.click();
+});
+
+resetBtn.addEventListener("click", () => {
+  inFlight?.abort();
+  revokeUrls();
+  sourceBlob = resultBlob = null;
+  preview.removeAttribute("src");
+  setStatus("");
+  render("pick");
+});
+
+// --- Bootstrap ------------------------------------------------------------
+Office.onReady(({ host }) => {
+  inPowerPoint = host === Office.HostType.PowerPoint;
+  if (!inPowerPoint) {
+    useSelectionBtn.hidden = true;
+  }
+  render("pick");
+});
+
 window.addEventListener("pagehide", () => {
   inFlight?.abort();
-  objectUrls.forEach((u) => URL.revokeObjectURL(u));
+  revokeUrls();
 });
